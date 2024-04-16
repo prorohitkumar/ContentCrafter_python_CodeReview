@@ -107,6 +107,9 @@ rolePlayCreator_service = RolePlayCreator(api_key=GOOGLE_API_KEY)
 #         raise Exception("Error in getting response from Gemini API")
 
 #     # return jsonify({'user_story': user_story})
+@app.route('/', methods=['GET'])
+def hello_world():
+    return "Hii"
 
 
 @app.route("/generate-user-story", methods=["POST"])
