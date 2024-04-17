@@ -1,13 +1,12 @@
-from flask import Flask, jsonify, request, send_file
-import requests
-import json
-import os
+from flask import Flask, jsonify, request
 from flask_cors import CORS
-
+import requests
+import os
+import json
 
 app = Flask(__name__)
-CORS(app)
 
+CORS(app)
 
 # Initializing the App and Gemini API
 working_dir = os.path.dirname(os.path.abspath(__file__))
@@ -16,190 +15,104 @@ config_data = json.load(open(config_file_path))
 GOOGLE_API_KEY = config_data["GOOGLE_API_KEY"]
 
 
-class RolePlayCreator:
+class CodeReviewer:
     def __init__(self, api_key):
         self.api_key = api_key
-        self.base_url = (
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key="
-            + self.api_key
-        )
+        self.base_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=" + self.api_key
 
+    def generate_review(self, code, description):
+        try:
+            headers = {'Content-Type': 'application/json'}
 
-rolePlayCreator_service = RolePlayCreator(api_key=GOOGLE_API_KEY)
+            if description == "Fix issues of my code":
+                prompt = (
+                    f"Act as a code reviewer. Your responsibility is to read the provided code:\n{code} \n and check "
+                    f"for any code related issues. First find out in which language the code is provided,"
+                    f"then according to the language of code, you should look for the following, and be extremely "
+                    f"vigilant:\n- Syntax errors\n- Logic errors\n- Security vulnerabilities\n- Performance "
+                    f"issues\n- Anything else that looks wrong\n\nOnce you find an error, please explain it as "
+                    f"clearly as possible along with error name and exact line number of the provided code."
+                    f"\nFollow it up with an explanation of the "
+                    f"error\nNext, you should provide the corrected code and explain the changes made in the "
+                    f"corrected code.\nUse the same format per issue found.If there is no issue in the provided "
+                    f"code, response with the message 'The code does not have any error' and don't provide any extra "
+                    f"information. If provided code is not related to any coding language, response with the message "
+                    f"'Please provide code for reviewing.'")
+            elif description == "Optimize my code":
+                prompt = (f"Act as a code reviewer. Your responsibility is to read the provided code:\n{code} \n and "
+                          "check for any code optimization and best practices of coding. First find out in which "
+                          "language the code is provided,"
+                          "then according to the language of code, you should look for the optimization and best "
+                          "practices of coding after checking of any code related issues. If any error is exist in "
+                          "the provided code,"
+                          "first solve it after then you should look for the optimization and best practices of "
+                          "making code testable."
+                          "Once you find an any optimization and best practices of coding in provided code, "
+                          "please explain both things,"
+                          "What have you changed in code to make it correct and optimized as clearly as possible. "
+                          "Next, you should provide the refactored code and explain the changes made in the refactored "
+                          "code. If there is no possibility of optimization in the provided code, response with the "
+                          "message 'Your code is already optimized' and don't provide any extra information. If "
+                          "provided code is not related to any coding language, response with the message 'Please "
+                          "provide code for Optimization.'")
+            else:
+                prompt = (
+                    "Act as a code reviewer.Your responsibility is to read the provided code and Document the "
+                    f"code:\n{code}\n."
+                    f"If the given code contains any code related issues then solve it."
+                    f"Make sure that, the code is documented with the help of comments only.Once you document the "
+                    f"code, You should provide the documented code."
+                    f"If provided code is not related to any coding language, response with the message 'This "
+                    f"code is not valid and therefore cannot be documented.'"
 
+                )
 
-# Define a route for user story generation
+            print(prompt)
 
+            generation_config = {
+                'temperature': 0.9,
+                'topK': 1,
+                'topP': 1,
+                'maxOutputTokens': 2048,
+                'stopSequences': []
+            }
 
-# @app.route("/generate-user-story", methods=["POST"])
-# def generate_user_story():
-#     # Extract request data
-#     data = request.get_json()
+            request_body = {
+                'contents': [{'parts': [{'text': prompt}]}],
+                'generationConfig': generation_config
+            }
 
-#     # Extract required fields from request body
-#     application_type = data.get("application_type")
-#     feature = data.get("feature")
-#     feature_for = data.get("feature_for")
-#     user_role = data.get("user_role")
+            response = requests.post(self.base_url, json=request_body, headers=headers)
+            response.raise_for_status()
 
-#     print(feature)
+            response_data = response.json()
+            generated_review = [candidate['content']['parts'][0]['text'] for candidate in response_data['candidates']]
+            return generated_review
 
-#     # Constructing the prompt
-#     promptt = (
-#         f"List all possible user stories for a {application_type} product {feature} feature for {feature_for} development used by {user_role}. "
-#         "Each user story should be accompanied by criteria that define when the story is considered complete, including both functional and non-functional requirements.\n"
-#         "Return your response in an array of JSON objects. Each object will have 'userStory' key.\n"
-#         "Below is the example structure that you should return your response: \n"
-#         """[
-#               {{
-#                 "userStory": "As a product administrator, I want to able to verify if a
-#                  user has registered a specific product using a guest user account, so that I can provide support
-#                  if needed",
-#               }},
-#               {{
-#                 "userStory": "As a product administrator, I want to able to view the registration details of a specific product registered by a guest user,
-#                   so that I can track warranty information and usage history",
-#               }}
-#             ]"""
-#     )
+        except Exception as e:
+            print("Service Exception:", str(e))
+            raise Exception("Error in getting response from Gemini API")
 
-#     try:
-#         headers = {"Content-Type": "application/json"}
-#         generation_config = {
-#             "temperature": 1.0,
-#             "topK": 1,
-#             "topP": 1,
-#             "maxOutputTokens": 2048,
-#             "stopSequences": [],
-#         }
-
-#         request_body = {
-#             "contents": [{"parts": [{"text": promptt}]}],
-#             "generationConfig": generation_config,
-#         }
-
-#         response = requests.post(
-#             rolePlayCreator_service.base_url, json=request_body, headers=headers
-#         )
-#         response.raise_for_status()
-#         response_data = response.json()
-#         rolePlayExercise = [
-#             candidate["content"]["parts"][0]["text"]
-#             for candidate in response_data["candidates"]
-#         ]
-#         print(rolePlayExercise)
-#         generated_questions = []
-#         for candidate in response_data["candidates"]:
-#             question_answer_pairs = json.loads(candidate["content"]["parts"][0]["text"])
-#             for pair in question_answer_pairs:
-#                 generated_questions.append(
-#                     {
-#                         "user story": pair["userStory"],
-#                     }
-#                 )
-
-#         print("\n\n\n\n", generated_questions)
-
-#         return jsonify(generated_questions)
-
-#     except Exception as e:
-#         print("Service Exception:", str(e))
-#         raise Exception("Error in getting response from Gemini API")
-
-#     # return jsonify({'user_story': user_story})
 @app.route('/', methods=['GET'])
 def hello_world():
     return "Hii"
 
+@app.route('/review_code', methods=['POST'])
+def review_code():
+    request_data = request.json
+    code = request_data.get('code')
+    description = request_data.get('description')
 
-@app.route("/generate-user-story", methods=["POST"])
-def generate_user_story():
-    # Extract request data
-    data = request.get_json()
+    print(code)
+    # api_key = "AIzaSyCYutjs2BzQThKnA2q1hDNbZro4Al7N0Dw"
+    reviewer = CodeReviewer(api_key=GOOGLE_API_KEY)
+    review = reviewer.generate_review(code, description)
 
-    # Extract required fields from request body
-    application_type = data.get("application_type")
-    feature = data.get("feature")
-    feature_for = data.get("feature_for")
-    user_role = data.get("user_role", "")
+    for i, question in enumerate(review, start=1):
+        print(f" Review {i}: {question}")
 
-    # Constructing the prompt dynamically based on presence of user_role
-    if user_role:
-        promptt = (
-            f"List all possible user stories for a {application_type} product {feature} feature for {feature_for} development used by {user_role}. "
-            "Each user story should be accompanied by criteria that define when the story is considered complete, including both functional and non-functional requirements.\n"
-            "Return your response in an array of JSON objects. Each object will have 'userStory' key.\n"
-            "Below is the example structure that you should return your response: \n"
-            """[
-                  {{
-                    "userStory": "As a product administrator, I want to able to verify if a
-                     user has registered a specific product using a guest user account, so that I can provide support
-                     if needed",
-                  }},
-                  {{
-                    "userStory": "As a product administrator, I want to able to view the registration details of a specific product registered by a guest user,
-                      so that I can track warranty information and usage history",
-                  }}
-                ]"""
-        )
-    else:
-        promptt = (
-            f"List all possible user stories for a {application_type} product {feature} feature for {feature_for} development. "
-            "Each user story should be accompanied by criteria that define when the story is considered complete, including both functional and non-functional requirements.\n"
-            "Return your response in an array of JSON objects. Each object will have 'userStory' key.\n"
-            "Below is the example structure that you should return your response: \n"
-            """[
-                  {{
-                    "userStory": "As a product administrator, I want to able to verify if a
-                     user has registered a specific product using a guest user account, so that I can provide support
-                     if needed",
-                  }},
-                  {{
-                    "userStory": "As a product administrator, I want to able to view the registration details of a specific product registered by a guest user,
-                      so that I can track warranty information and usage history",
-                  }}
-                ]"""
-        )
-
-    try:
-        headers = {"Content-Type": "application/json"}
-        generation_config = {
-            "temperature": 1.0,
-            "topK": 1,
-            "topP": 1,
-            "maxOutputTokens": 2048,
-            "stopSequences": [],
-        }
-
-        request_body = {
-            "contents": [{"parts": [{"text": promptt}]}],
-            "generationConfig": generation_config,
-        }
-
-        response = requests.post(
-            rolePlayCreator_service.base_url, json=request_body, headers=headers
-        )
-        response.raise_for_status()
-        response_data = response.json()
-
-        generated_questions = []
-        for candidate in response_data["candidates"]:
-            question_answer_pairs = json.loads(candidate["content"]["parts"][0]["text"])
-            for pair in question_answer_pairs:
-                generated_questions.append(
-                    {
-                        "user story": pair["userStory"],
-                    }
-                )
-
-        return jsonify(generated_questions)
-
-    except Exception as e:
-        print("Service Exception:", str(e))
-        raise Exception("Error in getting response from Gemini API")
-
-    # return jsonify({'user_story': user_story})
+    return jsonify({"review": review})
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0")
