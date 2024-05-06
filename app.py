@@ -31,7 +31,7 @@ class CodeReviewer:
             headers = {'Content-Type': 'application/json'}
 
             if description == "Fix issues of my code":
-                logging.info(f"Fix issue of the code:",{code})
+                logging.info(f"Fix issue of the code: {code}")
                 prompt = (
                     f"Act as a code reviewer. Your responsibility is to read the provided code:\n{code} \n and check "
                     f"for any code related issues. First find out in which language the code is provided,"
@@ -46,7 +46,7 @@ class CodeReviewer:
                     f"information. If provided code is not related to any coding language, response with the message "
                     f"'Please provide code for reviewing.'")
             elif description == "Optimize my code":
-                logging.info(f"Optimizing the code:",{code})
+                logging.info(f"Optimizing the code: {code}")
                 prompt = (f"Act as a code reviewer. Your responsibility is to read the provided code:\n{code} \n and "
                           "check for any code optimization and best practices of coding. First find out in which "
                           "language the code is provided,"
@@ -64,7 +64,7 @@ class CodeReviewer:
                           "provided code is not related to any coding language, response with the message 'Please "
                           "provide code for Optimization.'")
             else:
-                logging.info(f"Fix the issue if and document the same:",{code})
+                logging.info(f"Fix the issue if and document the same: {code}")
                 prompt = (
                     "Act as a code reviewer.Your responsibility is to read the provided code and Document the "
                     f"code:\n{code}\n."
@@ -100,7 +100,7 @@ class CodeReviewer:
 
         except Exception as e:
             print("Service Exception:", str(e))
-            logging.error(f"Service exception caused while generating response",str(e))
+            logging.error(f"Service exception caused while generating response: {str(e)}")
             raise Exception("Error in getting response from Gemini API")
 
 @app.route('/', methods=['GET'])
